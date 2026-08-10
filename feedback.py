@@ -3,120 +3,115 @@ from dotenv import load_dotenv
 import logging
 from typing import Tuple
 import re
-import requests
-import json
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-load_dotenv()
+# Load .env with robust error handling
+try:
+    load_dotenv(encoding='utf-8')
+except (UnicodeDecodeError, UnicodeError):
+    try:
+        load_dotenv(encoding='utf-16')
+        logger.info("Loaded .env file with UTF-16 encoding")
+    except:
+        try:
+            load_dotenv(encoding='latin-1')
+            logger.info("Loaded .env file with latin-1 encoding")
+        except:
+            logger.warning("Could not load .env file. Using system environment variables.")
+except Exception as e:
+    logger.warning(f"Error loading .env file: {e}. Using system environment variables.")
 
 def ai_feedback(resume_text: str, jd_text: str) -> str:
     """
-    Generate personalized AI feedback using OpenAI API with intelligent fallback
+    Generate personalized AI feedback using Groq API via LangChain with intelligent fallback
     """
     if not resume_text or not jd_text:
         return "Please provide both resume text and job description."
 
-    # Try OpenAI API first
-    openai_result = try_openai_api(resume_text, jd_text)
-    if openai_result and "AI Analysis Complete" in openai_result:
-        return openai_result
+    # Try Groq API with LangChain first
+    groq_result = try_groq_langchain(resume_text, jd_text)
+    if groq_result and "AI Analysis Complete" in groq_result:
+        return groq_result
     
     # Fallback to your comprehensive intelligent analysis
     return generate_personalized_analysis(resume_text, jd_text, "AI API temporarily unavailable")
 
-def try_openai_api(resume_text: str, jd_text: str) -> str:
+def try_groq_langchain(resume_text: str, jd_text: str) -> str:
     """
-    Try OpenAI API for AI-generated feedback
+    Try Groq API using LangChain for AI-generated feedback
     """
-    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+    groq_key = os.getenv("GROQ_API_KEY", "").strip()
+    groq_model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+    groq_temp = float(os.getenv("GROQ_TEMPERATURE", "0.7"))
     
-    if not openai_key:
-        logger.info("No OpenAI API key found")
+    if not groq_key:
+        logger.info("No Groq API key found")
         return None
     
     try:
-        # Create focused prompt
-        prompt = create_openai_prompt(resume_text, jd_text)
+        # Import LangChain components
+        from langchain_groq import ChatGroq
+        from langchain_core.prompts import ChatPromptTemplate
+        from langchain_core.output_parsers import StrOutputParser
         
-        # OpenAI API endpoint
-        url = "https://api.openai.com/v1/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {openai_key}",
-            "Content-Type": "application/json"
-        }
+        # Initialize Groq LLM
+        llm = ChatGroq(
+            model=groq_model,
+            api_key=groq_key,
+            temperature=groq_temp
+        )
         
-        # API payload
-        payload = {
-            "model": "gpt-3.5-turbo",
-            "messages": [
-                {
-                    "role": "system", 
-                    "content": "You are an expert career advisor and resume specialist with 15+ years of experience. Provide professional, actionable feedback that helps candidates improve their job application success."
-                },
-                {
-                    "role": "user", 
-                    "content": prompt
-                }
-            ],
-            "max_tokens": 500,
-            "temperature": 0.7
-        }
+        # Truncate texts to manage token limits
+        resume_snippet = resume_text[:2000] if len(resume_text) > 2000 else resume_text
+        jd_snippet = jd_text[:1500] if len(jd_text) > 1500 else jd_text
         
-        logger.info("Calling OpenAI API...")
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
-        
-        if response.status_code == 200:
-            result = response.json()
-            if "choices" in result and result["choices"]:
-                ai_response = result["choices"][0]["message"]["content"]
-                logger.info("Successfully generated OpenAI response")
-                return f"🤖 **AI Analysis Complete:**\n\n{ai_response}\n\n*Generated using OpenAI GPT-3.5*"
-        
-        elif response.status_code == 401:
-            logger.error("OpenAI API key invalid")
-        elif response.status_code == 429:
-            logger.error("OpenAI rate limit exceeded")
-        elif response.status_code == 402:
-            logger.error("OpenAI quota exceeded - add credits to your account")
-        else:
-            logger.error(f"OpenAI API error: {response.status_code} - {response.text}")
-            
-    except requests.exceptions.Timeout:
-        logger.error("OpenAI API timeout")
-    except Exception as e:
-        logger.error(f"OpenAI API call failed: {e}")
-    
-    return None
-
-def create_openai_prompt(resume_text: str, jd_text: str) -> str:
-    """
-    Create an effective prompt for OpenAI
-    """
-    # Truncate to manage token limits
-    resume_snippet = resume_text[:1200] if len(resume_text) > 1200 else resume_text
-    jd_snippet = jd_text[:1000] if len(jd_text) > 1000 else jd_text
-    
-    prompt = f"""Please analyze this resume against the job description and provide specific, actionable feedback.
-
-JOB DESCRIPTION:
-{jd_snippet}
+        # Create prompt using ChatPromptTemplate
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", "You are an expert career advisor and resume specialist with 15+ years of experience. Analyze the following resume against the job description and provide professional, actionable feedback."),
+            ("human", """JOB DESCRIPTION:
+{jd_text}
 
 RESUME:
-{resume_snippet}
+{resume_text}
 
-Please provide:
-1. Overall match assessment (percentage and reasoning)
+Please provide a comprehensive analysis with:
+1. Overall match assessment (percentage estimate and clear reasoning)
 2. Top 3 strengths that align with the job requirements
 3. Top 3 areas that need improvement
 4. Specific skills or experience that are missing
 5. 3 concrete, actionable recommendations to improve this resume for this specific role
 
-Be professional, specific, and focus on practical advice that will help the candidate improve their chances of getting this job."""
-    
-    return prompt
+Be professional, specific, and focus on practical advice that will help the candidate improve their chances of getting this job.""")
+        ])
+        
+        # Create chain using LCEL
+        chain = prompt | llm | StrOutputParser()
+        
+        logger.info("Calling Groq API via LangChain...")
+        
+        # Invoke the chain
+        ai_response = chain.invoke({
+            "resume_text": resume_snippet,
+            "jd_text": jd_snippet
+        })
+        
+        if ai_response:
+            logger.info("Successfully generated Groq response via LangChain")
+            return f"🤖 **AI Analysis Complete:**\n\n{ai_response}\n\n*Generated using Groq AI ({groq_model}) via LangChain*"
+        else:
+            logger.error("Empty response from Groq")
+            return None
+            
+    except ImportError as e:
+        logger.error(f"LangChain import error: {e}")
+        logger.info("Install: pip install langchain-core langchain-groq")
+        return None
+    except Exception as e:
+        logger.error(f"Groq LangChain call failed: {e}")
+        return None
 
 def generate_personalized_analysis(resume_text: str, jd_text: str, reason: str) -> str:
     """
@@ -389,29 +384,37 @@ def rule_based_feedback(matched_skills: list, missing_skills: list, resume_text:
     return '\n\n'.join(feedback_parts)
 
 def test_hf_connection() -> Tuple[bool, str]:
-    """Test OpenAI connection instead of HuggingFace"""
-    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+    """Test Groq API connection via LangChain"""
+    groq_key = os.getenv("GROQ_API_KEY", "").strip()
     
-    if not openai_key:
-        return False, "❌ OPENAI_API_KEY not found in .env file"
+    if not groq_key:
+        return False, "❌ GROQ_API_KEY not found in .env file"
     
     try:
-        # Test with a simple request
-        url = "https://api.openai.com/v1/models"
-        headers = {"Authorization": f"Bearer {openai_key}"}
+        from langchain_groq import ChatGroq
         
-        response = requests.get(url, headers=headers, timeout=10)
+        # Try to initialize the ChatGroq client
+        llm = ChatGroq(
+            model=os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
+            api_key=groq_key,
+            temperature=0.1
+        )
         
-        if response.status_code == 200:
-            return True, "✅ OpenAI API connection successful"
-        elif response.status_code == 401:
-            return False, "❌ Invalid OpenAI API key"
-        elif response.status_code == 402:
-            return False, "❌ OpenAI quota exceeded - add credits to your account"
-        elif response.status_code == 429:
-            return False, "❌ OpenAI rate limit exceeded - wait and try again"
+        # Test with a simple invoke
+        response = llm.invoke("Say 'Hello'")
+        
+        if response:
+            return True, "✅ Groq API connection successful via LangChain"
         else:
-            return False, f"❌ OpenAI API error: {response.status_code}"
+            return False, "❌ Unexpected response from Groq API"
             
+    except ImportError:
+        return False, "❌ langchain-groq not installed. Run: pip install langchain-groq"
     except Exception as e:
-        return False, f"❌ Connection failed: {str(e)}"
+        error_msg = str(e)
+        if "401" in error_msg or "Unauthorized" in error_msg:
+            return False, "❌ Invalid Groq API key"
+        elif "429" in error_msg or "rate limit" in error_msg.lower():
+            return False, "❌ Groq rate limit exceeded - wait and try again"
+        else:
+            return False, f"❌ Connection failed: {error_msg}"

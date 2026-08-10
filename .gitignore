@@ -1,16 +1,13 @@
-# Virtual environment
-venv/
-
-# Python cache files
+.env
 __pycache__/
 *.pyc
-
-# VS Code settings
+.venv/
+venv/
+env/
 .vscode/
+.idea/
 
-# OS files
-.DS_Store
-Thumbs.db
-
-# Environment variables (like API keys)
-.env
+*.csv
+*.pkl
+*.keras
+*.png
