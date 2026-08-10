@@ -1,251 +1,453 @@
-# AI Resume Analyzer - Setup Guide
+# 🤖 AI Resume Analyzer
 
-## 📋 Project Overview
-An intelligent resume analysis system using a **custom-trained ANN (Artificial Neural Network)** to match resumes against job descriptions with automatic skill extraction, AI-powered feedback, and interactive web interface.
+An AI-powered resume analysis and job-matching application that evaluates how well a resume aligns with a given job description using **NLP, semantic similarity, skill extraction, and a custom Artificial Neural Network (ANN)**.
 
----
-
-## ⚙️ Requirements
-- **Python**: 3.10, 3.11, 3.12, or 3.13
-- **RAM**: 4GB minimum
-- **Storage**: 3GB free space
+The system accepts PDF/DOCX resumes, extracts relevant information and skills, compares them against a job description, generates an ANN-based match score, identifies matched and missing skills, and provides both rule-based and LLM-powered feedback.
 
 ---
 
-## 🚀 Complete Setup Commands - Follow these commands in vscode terminal and if any errors are found then , debug using commands mentioned after setup commands
+## ✨ Features
 
-### Windows (Command Prompt)
-```cmd
-cd AI-Resume-Analyzer
-python --version
-python -m venv venv
-venv\Scripts\activate
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-streamlit run app.py
+### 📄 Resume Parsing & Validation
+
+* Upload resumes in **PDF or DOCX** format
+* Extract resume text automatically
+* Detect common resume sections
+* Analyze document statistics such as word, character, and line counts
+* Identify potential formatting issues and provide suggestions
+
+### 🎯 Skill Matching
+
+* Extract technical and professional skills from resumes and job descriptions
+* Identify:
+
+  * ✅ Matched skills
+  * ⚠️ Missing skills
+* Calculate a skill-match ratio between the resume and job requirements
+
+### 🧠 Semantic Similarity
+
+* Uses **Sentence Transformers (`all-MiniLM-L6-v2`)** to generate text embeddings
+* Measures semantic similarity between resume content and the job description
+* Goes beyond simple keyword matching by considering contextual similarity
+
+### 🤖 ANN-Based Resume Matching
+
+The project uses a custom-trained Artificial Neural Network to generate a resume–job match score.
+
+The model uses four features:
+
+* Skill match ratio
+* Semantic similarity
+* Number of skills identified in the resume
+* Number of skills identified in the job description
+
+Current architecture:
+
+```text
+Input Features (4)
+        ↓
+Dense Layer (64)
+        ↓
+Dense Layer (32)
+        ↓
+Dense Layer (16)
+        ↓
+Output Layer
+        ↓
+Match Score
 ```
 
-### Windows (PowerShell)
-```powershell
-cd AI-Resume-Analyzer
-python --version
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-streamlit run app.py
-```
+The training pipeline is provided in `train_ann_real_data.py`.
 
-### macOS / Linux
-```bash
-cd AI-Resume-Analyzer
-python3 --version
-python3 -m venv venv
-source venv/bin/activate
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-streamlit run app.py
-```
+### 💡 Automated Feedback
 
-**✅ Success:** Browser opens automatically to `http://localhost:8501`
+The system provides two forms of feedback:
 
-**⏱️ Installation Time:** 5-10 minutes (one-time setup)
+**Rule-based feedback**
+
+* Highlights missing skills
+* Suggests relevant improvements
+* Recommends stronger alignment with the job description
+
+**AI-powered feedback**
+
+* Uses a LangChain/Groq-based LLM workflow
+* Generates additional resume improvement suggestions
+* Provides role-specific feedback based on the uploaded resume and job description
+
+### 📊 Explainable Results
+
+The application displays:
+
+* Overall AI match score
+* ANN feature breakdown
+* Matched skills
+* Missing skills
+* Detailed analysis
+* AI-powered insights
+* Extracted resume text
+* Actionable recommendations
 
 ---
 
-## 🧪 Quick Test
+## 🏗️ System Architecture
 
-1. **Upload Resume**: Click "Choose your resume file" → Select any PDF/DOCX
-
-2. **Paste Job Description**:
-   ```
-   Python Developer position requiring:
-   - Python, Django, Flask
-   - SQL, PostgreSQL
-   - RESTful APIs
-   - Git, Docker, AWS
-   - 3+ years experience
-   ```
-
-3. **Click "🚀 Analyze Resume"** → Wait 10-15 seconds
-
-4. **Verify Results**:
-   - ✅ Match Score percentage
-   - ✅ Matched Skills (green tags)
-   - ✅ Missing Skills (red tags)
-   - ✅ Detailed feedback sections
+```text
+                 ┌─────────────────────┐
+                 │   Resume PDF/DOCX   │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │   Resume Parser     │
+                 │ PDF / DOCX / Text   │
+                 └──────────┬──────────┘
+                            │
+                            ▼
+                 ┌─────────────────────┐
+                 │  Skill Extraction   │
+                 └──────────┬──────────┘
+                            │
+                ┌───────────┴───────────┐
+                ▼                       ▼
+       ┌────────────────┐      ┌─────────────────┐
+       │ Skill Matching │      │ Sentence        │
+       │                │      │ Transformer     │
+       └───────┬────────┘      └────────┬────────┘
+               │                        │
+               └───────────┬────────────┘
+                           ▼
+                ┌─────────────────────┐
+                │ ANN Feature Vector  │
+                └──────────┬──────────┘
+                           ▼
+                ┌─────────────────────┐
+                │   ANN Model         │
+                │ Resume-JD Scoring   │
+                └──────────┬──────────┘
+                           │
+                ┌──────────┴──────────┐
+                ▼                     ▼
+       ┌────────────────┐    ┌─────────────────┐
+       │ Rule-Based     │    │ LLM-Based       │
+       │ Feedback       │    │ Feedback        │
+       └────────┬───────┘    └────────┬────────┘
+                │                     │
+                └──────────┬──────────┘
+                           ▼
+                ┌─────────────────────┐
+                │ Interactive Results │
+                │ Score + Skills +    │
+                │ Feedback + Actions  │
+                └─────────────────────┘
+```
 
 ---
 
-## 🐛 Troubleshooting
+## 🛠️ Tech Stack
 
-### "python: command not found"
-```bash
-python3 --version
-python3 -m venv venv
-source venv/bin/activate
-```
-
-### "No module named 'streamlit'"
-```bash
-# Make sure (venv) appears in your prompt
-venv\Scripts\activate          # Windows
-source venv/bin/activate       # Mac/Linux
-
-pip install -r requirements.txt
-```
-
-### TensorFlow installation fails
-```bash
-pip install --no-cache-dir tensorflow==2.20.0
-pip install -r requirements.txt
-```
-
-### Port 8501 already in use
-```bash
-streamlit run app.py --server.port 8502
-```
-
-### PowerShell execution policy error
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-.\venv\Scripts\Activate.ps1
-```
-
-### Model files not found
-```bash
-# Check files exist:
-dir *.keras *.pkl        # Windows
-ls *.keras *.pkl         # Mac/Linux
-
-# Should show: resume_score_ann.keras, resume_scaler.pkl
-```
+| Component             | Technology            |
+| --------------------- | --------------------- |
+| Frontend / UI         | Streamlit             |
+| Programming Language  | Python                |
+| Machine Learning      | TensorFlow / Keras    |
+| NLP                   | Sentence Transformers |
+| Embeddings            | `all-MiniLM-L6-v2`    |
+| Traditional ML        | Scikit-learn          |
+| LLM Integration       | LangChain + Groq      |
+| PDF Parsing           | pdfplumber            |
+| DOCX Parsing          | docx2txt              |
+| Data Processing       | NumPy, Pandas         |
+| Visualization         | Matplotlib, Seaborn   |
+| Environment Variables | python-dotenv         |
 
 ---
 
 ## 📁 Project Structure
+
+```text
+AI-Resume-Analyser/
+│
+├── app.py
+│   └── Main Streamlit application and user interface
+│
+├── matcher.py
+│   └── Skill extraction, semantic similarity and ANN matching logic
+│
+├── resume_parser.py
+│   └── PDF/DOCX parsing and resume validation
+│
+├── feedback.py
+│   └── Rule-based and AI-powered feedback generation
+│
+├── train_ann_real_data.py
+│   └── ANN training pipeline
+│
+├── requirements.txt
+│   └── Python dependencies
+│
+├── .gitignore
+│   └── Excludes secrets, environments and generated model/data files
+│
+└── README.md
 ```
-AI-Resume-Analyzer/
-├── app.py                      # Main application
-├── matcher.py                  # ANN model logic
-├── feedback.py                 # Feedback generation
-├── resume_parser.py            # Document parsing
-├── resume_score_ann.keras     # Pre-trained model
-├── resume_scaler.pkl          # Feature scaler
-├── requirements.txt           # Dependencies
-└── .env                        # API credentials
-└── train_ann_real_data.py      # training file                
-```
+
+> Trained model artifacts and datasets are intentionally excluded from the repository. The training pipeline is provided separately in `train_ann_real_data.py`.
 
 ---
 
-## 🧠 ANN Model Details
+## 🚀 Installation
 
-- **Input Features**: 4 (skill match ratio, semantic similarity, resume/JD skills count)
-- **Architecture**: Dense(64) → Dense(32) → Dense(16) → Output(1)
-- **Training**: 3000 samples from real resumes
-- **Output**: Match score (0-100%)
+### 1. Clone the repository
 
-**Pre-trained model included** - No training required to run the application.
-
----
-
-## 📊 Score Interpretation
-
-| Score | Meaning |
-|-------|---------|
-| 85-100% | Excellent match |
-| 70-84% | Strong match |
-| 60-69% | Good match |
-| 50-59% | Moderate match |
-| <50% | Limited match |
-
----
-
-## ✅ Verification Checklist
-
-- [ ] Python 3.10+ installed
-- [ ] Virtual environment activated (see `(venv)` in prompt)
-- [ ] Dependencies installed successfully
-- [ ] App opens at http://localhost:8501
-- [ ] Can upload resume and paste job description
-- [ ] Analysis completes with results displayed
-
----
-
-## 📝 Quick Reference
-
-**First Time Setup:**
 ```bash
-cd AI-Resume-Analyzer
+git clone https://github.com/ArtCSI/AI-Resume-Analyser.git
+cd AI-Resume-Analyser
+```
+
+### 2. Create a virtual environment
+
+#### Windows
+
+```powershell
 python -m venv venv
-venv\Scripts\activate          # Windows
-source venv/bin/activate       # Mac/Linux
-pip install --upgrade pip
-pip install -r requirements.txt
-streamlit run app.py
+.\venv\Scripts\Activate.ps1
 ```
 
-**Every Subsequent Run:**
-```bash
-cd AI-Resume-Analyzer
-venv\Scripts\activate          # Windows
-source venv/bin/activate       # Mac/Linux
-streamlit run app.py
-```
-
-**Stop App:** Press `Ctrl+C`
-
-**Deactivate venv:** Type `deactivate`
-
----
-
-## ⚠️ Important Notes
-
-- Always activate virtual environment before running (see `(venv)` in prompt)
-- First run downloads NLP models (~100MB, 1-2 minutes)
-- TensorFlow/NumPy warnings are normal and can be ignored
-- Analysis takes 10-15 seconds per resume
-- API credentials included in `.env` file
-
----
-
-## 🎯 Technologies
-
-- Streamlit 1.39.0 (UI)
-- TensorFlow 2.20.0 (ANN)
-- Sentence Transformers 3.3.1 (NLP)
-- LangChain + Groq API (AI feedback)
-- pdfplumber, docx2txt (Parsing)
-
----
-
-## ⏱️ Time Estimates
-
-| Task | Time |
-|------|------|
-| Setup | 5-10 min |
-| First launch | 2 min |
-| Analysis | 10-15 sec |
-| **Total** | **10-15 min** |
-
----
-
-**Tested on:** Windows 11, macOS 14, Ubuntu 22.04  
-**Python:** 3.10.11, 3.11.5, 3.12.0, 3.13.0
-
----
-
-## 🚀 TL;DR
+#### macOS / Linux
 
 ```bash
-cd AI-Resume-Analyzer
-python -m venv venv
-venv\Scripts\activate                    # Windows
-source venv/bin/activate                 # Mac/Linux
-pip install --upgrade pip
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### 3. Install dependencies
+
+```bash
+python -m pip install --upgrade pip
 pip install -r requirements.txt
+```
+
+### 4. Configure environment variables
+
+Create a `.env` file in the project root.
+
+```text
+GROQ_API_KEY=your_api_key_here
+```
+
+**Do not commit `.env` or API keys to GitHub.**
+
+### 5. Run the application
+
+```bash
 streamlit run app.py
 ```
 
-**Open browser at http://localhost:8501 and test! ✅**
+The application will be available at:
+
+```text
+http://localhost:8501
+```
+
+---
+
+## 🧪 Using the Application
+
+### Step 1 — Upload Resume
+
+Upload a resume in:
+
+* PDF
+* DOCX
+
+The application parses the document and can perform basic file-quality analysis.
+
+### Step 2 — Add Job Description
+
+Paste the complete job description into the job-description field.
+
+### Step 3 — Analyze
+
+Click:
+
+```text
+🚀 Analyze Resume
+```
+
+The system performs the following pipeline:
+
+```text
+1. Resume parsing
+2. Skill extraction
+3. ANN-based similarity computation
+4. ANN feature analysis
+5. Rule-based feedback generation
+6. AI-powered feedback generation
+```
+
+### Step 4 — Review Results
+
+The application displays:
+
+* AI Resume Match Score
+* ANN feature breakdown
+* Matched skills
+* Missing skills
+* Detailed analysis
+* AI-powered insights
+* Quick action items
+
+---
+
+## 🧠 Machine Learning Pipeline
+
+The matching system combines multiple signals rather than relying exclusively on keyword overlap.
+
+### Feature 1 — Skill Match Ratio
+
+Measures the proportion of job-description skills that are also identified in the resume.
+
+### Feature 2 — Semantic Similarity
+
+Resume and job-description text are converted into embeddings using a Sentence Transformer and compared using semantic similarity.
+
+### Feature 3 — Resume Skill Count
+
+Number of recognized skills extracted from the resume.
+
+### Feature 4 — Job Description Skill Count
+
+Number of recognized skills extracted from the job description.
+
+These features are passed into the ANN to produce the final match score.
+
+---
+
+## 📈 Current Model
+
+The ANN currently uses:
+
+```text
+4 input features
+      ↓
+Dense(64)
+      ↓
+Dense(32)
+      ↓
+Dense(16)
+      ↓
+Output(1)
+```
+
+The output is converted into a **0–100 resume–job match score**.
+
+The model-training workflow is available in:
+
+```text
+train_ann_real_data.py
+```
+
+---
+
+## 🔍 Why This Approach?
+
+A resume can contain relevant experience even when the exact wording of a job description is different.
+
+For example:
+
+```text
+Resume:
+"Built REST APIs using Flask"
+
+Job Description:
+"Experience developing backend web services"
+```
+
+A pure keyword matcher may miss part of this relationship.
+
+Semantic embeddings provide contextual similarity, while explicit skill extraction provides an interpretable view of which requirements are directly matched or missing.
+
+The ANN combines these signals into a single matching score.
+
+---
+
+## ⚠️ Current Limitations
+
+This project is an evolving AI/ML application and currently has several limitations:
+
+* Skill extraction relies heavily on a predefined skill vocabulary.
+* Synonyms and less common technical terminology may not always be detected.
+* Resume/job-description matching can be affected by document length and formatting.
+* The current ANN training pipeline uses engineered features and generated training targets rather than a large professionally labeled recruitment dataset.
+* Match scores should be interpreted as an analytical estimate rather than an actual hiring probability.
+* LLM-generated feedback depends on external API availability and model behavior.
+
+These limitations provide opportunities for future experimentation and improvement.
+
+---
+
+## 🔬 Planned Improvements
+
+### Model & Evaluation
+
+* Build a manually labeled resume–job-description evaluation dataset
+* Compare against keyword and TF-IDF baselines
+* Benchmark embedding-only versus ANN-based approaches
+* Evaluate using MAE, RMSE and correlation metrics
+* Analyze model failure cases
+
+### NLP Improvements
+
+* Improve skill normalization and synonym detection
+* Expand contextual skill extraction
+* Improve handling of long resumes and job descriptions
+* Introduce section-aware resume analysis
+
+### Explainability
+
+* Provide a clearer breakdown of why a match score was generated
+* Identify the contribution of individual matching features
+* Highlight evidence from relevant resume sections
+
+### Product Improvements
+
+* Generate downloadable analysis reports
+* Add improved visualization of matching results
+* Support additional document formats
+* Add job-role-specific analysis
+
+---
+
+## 🎯 Project Goals
+
+The long-term goal is to develop the system into a more robust and explainable resume intelligence platform that can help candidates:
+
+* Understand their compatibility with a job description
+* Identify missing skills
+* Improve resume-job alignment
+* Receive actionable feedback
+* Better understand how different resume features influence matching
+
+---
+
+## 📚 Key Learning Areas
+
+This project brings together:
+
+* Natural Language Processing
+* Sentence embeddings
+* Semantic similarity
+* Artificial Neural Networks
+* Feature engineering
+* Resume/document parsing
+* Information extraction
+* LLM integration
+* Explainable AI concepts
+* Streamlit application development
+* Machine-learning experimentation
+
+## ⭐ Future Direction
+
+The project is being developed incrementally, with emphasis on moving from a functional prototype toward a more rigorously evaluated and explainable resume–job matching system.
